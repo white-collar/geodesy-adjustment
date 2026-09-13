@@ -25,17 +25,40 @@ function angleDeg(p, q, k) {
 
 function addPointRow(id = "", x = "", y = "") {
   const tr = document.createElement("tr");
+  tr.dataset.pointId = id;
   tr.innerHTML = `
     <td><input type="text" class="p-id" value="${id}"></td>
     <td><input type="number" step="any" class="p-x" value="${x}"></td>
     <td><input type="number" step="any" class="p-y" value="${y}"></td>
     <td><button type="button" class="remove-row">&times;</button></td>
   `;
+  tr.querySelector(".p-id").addEventListener("input", (e) => {
+    const oldId = tr.dataset.pointId;
+    const newId = e.target.value.trim();
+    if (!newId) return; // mid-edit (e.g. cleared before retyping) — don't cascade through a blank id
+    if (oldId && oldId !== newId) renamePointIdInObservations(oldId, newId);
+    tr.dataset.pointId = newId;
+  });
   tr.querySelector(".remove-row").addEventListener("click", () => {
     tr.remove();
     renderConnectivityGraph();
   });
   pointsBody.appendChild(tr);
+}
+
+// A reference point's row is the one canonical place its identity lives, so
+// renaming it here cascades to every observation cell using the old id.
+// (Editing a from/to/to2 cell directly stays a local, non-cascading edit —
+// there's no single "canonical" row for a determined point to rename from,
+// and cascading a one-off cell edit could surprise-rename it everywhere.)
+function renamePointIdInObservations(oldId, newId) {
+  for (const tr of obsBody.querySelectorAll("tr")) {
+    for (const cls of [".o-from", ".o-to", ".o-to2"]) {
+      const input = tr.querySelector(cls);
+      if (input.value === oldId) input.value = newId;
+    }
+  }
+  renderConnectivityGraph();
 }
 
 function collectReferencePoints() {
