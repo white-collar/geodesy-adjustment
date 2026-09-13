@@ -140,40 +140,169 @@ function collectObservations() {
   });
 }
 
-// ---------- CSV import (simple: header row + comma-separated values, no quoting) ----------
+// ---------- network file import (a constrained YAML subset, hand-parsed) ----------
+//
+// This is NOT a general-purpose YAML parser — it only understands exactly
+// the shape our own file format uses: a flat `key: value` block for `meta`
+// and `defaults`, and flow-style list-of-maps (`- {k: v, k2: v2}`) for
+// `reference_points`/`observations`. No nesting, anchors, block scalars, or
+// multi-document support. That's a deliberate scope match to the format,
+// not a shortcut — see the project's no-external-dependencies choice.
 
-function parseCsv(text) {
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .slice(1) // drop header
-    .map((line) => line.split(",").map((cell) => cell.trim()));
+function stripYamlComment(line) {
+  let quote = null;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+    } else if (ch === "#") {
+      return line.slice(0, i);
+    }
+  }
+  return line;
 }
 
-document.getElementById("import-points-csv").addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  file.text().then((text) => {
-    pointsBody.innerHTML = "";
-    for (const [id, x, y] of parseCsv(text)) {
-      addPointRow(id, x, y);
+function splitRespectingQuotes(str, delim) {
+  const parts = [];
+  let cur = "";
+  let quote = null;
+  for (const ch of str) {
+    if (quote) {
+      cur += ch;
+      if (ch === quote) quote = null;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+      cur += ch;
+    } else if (ch === delim) {
+      parts.push(cur);
+      cur = "";
+    } else {
+      cur += ch;
     }
-    renderConnectivityGraph();
-  });
-  e.target.value = "";
-});
+  }
+  parts.push(cur);
+  return parts;
+}
 
-document.getElementById("import-observations-csv").addEventListener("change", (e) => {
+function parseYamlScalar(raw) {
+  const v = raw.trim();
+  if (v.length >= 2 && ((v[0] === '"' && v.endsWith('"')) || (v[0] === "'" && v.endsWith("'")))) {
+    return v.slice(1, -1);
+  }
+  if (v !== "" && !isNaN(v)) return parseFloat(v);
+  return v;
+}
+
+function parseFlowMapping(text) {
+  const obj = {};
+  for (const pair of splitRespectingQuotes(text, ",")) {
+    if (!pair.trim()) continue;
+    const colon = pair.indexOf(":");
+    if (colon === -1) continue;
+    const key = pair.slice(0, colon).trim();
+    obj[key] = parseYamlScalar(pair.slice(colon + 1));
+  }
+  return obj;
+}
+
+function parseYamlNetwork(text) {
+  const sections = { meta: {}, defaults: {}, reference_points: [], observations: [] };
+  let current = null;
+
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = stripYamlComment(lines[i]).replace(/\s+$/, "");
+    if (line.trim() === "") continue;
+
+    const sectionMatch = line.match(/^(meta|defaults|reference_points|observations):\s*$/);
+    if (sectionMatch) {
+      current = sectionMatch[1];
+      continue;
+    }
+    if (!current) {
+      throw new Error(`строка ${i + 1}: ожидался заголовок секции (meta/defaults/reference_points/observations), получено "${lines[i]}"`);
+    }
+
+    if (current === "meta" || current === "defaults") {
+      const m = line.trim().match(/^([A-Za-z0-9_]+):\s*(.*)$/);
+      if (!m) throw new Error(`строка ${i + 1}: не удалось разобрать "key: value" в "${lines[i]}"`);
+      sections[current][m[1]] = parseYamlScalar(m[2]);
+    } else {
+      const trimmed = line.trim();
+      const flow = trimmed.match(/^-\s*\{(.*)\}\s*$/);
+      if (!flow) throw new Error(`строка ${i + 1}: ожидалась запись вида "- {key: value, ...}" в "${lines[i]}"`);
+      sections[current].push(parseFlowMapping(flow[1]));
+    }
+  }
+  return sections;
+}
+
+function escapeHtml(s) {
+  const div = document.createElement("div");
+  div.textContent = String(s);
+  return div.innerHTML;
+}
+
+function renderMeta(meta) {
+  const panel = document.getElementById("meta-panel");
+  const keys = Object.keys(meta);
+  if (keys.length === 0) {
+    panel.hidden = true;
+    return;
+  }
+  document.getElementById("meta-list").innerHTML = keys
+    .map((k) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(meta[k])}</dd>`)
+    .join("");
+  panel.hidden = false;
+}
+
+function loadParsedNetwork(parsed) {
+  if (parsed.defaults.sigma_distance !== undefined) {
+    document.getElementById("default-sigma-linear").value = parsed.defaults.sigma_distance;
+  }
+  if (parsed.defaults.sigma_angular !== undefined) {
+    document.getElementById("default-sigma-angular").value = parsed.defaults.sigma_angular;
+  }
+
+  pointsBody.innerHTML = "";
+  for (const p of parsed.reference_points) {
+    addPointRow(p.id, p.x, p.y);
+  }
+
+  obsBody.innerHTML = "";
+  selectedObsRow = null;
+  for (const o of parsed.observations) {
+    addObservationRow(
+      o.type,
+      o.from,
+      o.to,
+      o.to2 !== undefined ? String(o.to2) : "",
+      o.value,
+      o.sigma !== undefined ? String(o.sigma) : ""
+    );
+  }
+
+  renderMeta(parsed.meta);
+  errorBox.hidden = true;
+  emptyState.hidden = false;
+  resultSection.hidden = true;
+  renderConnectivityGraph();
+}
+
+document.getElementById("import-network-yaml").addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
   file.text().then((text) => {
-    obsBody.innerHTML = "";
-    selectedObsRow = null;
-    for (const [type, from, to, to2, value, sigma] of parseCsv(text)) {
-      addObservationRow(type, from, to, to2 || "", value, sigma);
+    let parsed;
+    try {
+      parsed = parseYamlNetwork(text);
+    } catch (err) {
+      showError(`Не удалось разобрать файл: ${err.message}`);
+      return;
     }
-    renderConnectivityGraph();
+    loadParsedNetwork(parsed);
   });
   e.target.value = "";
 });

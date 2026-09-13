@@ -16,10 +16,16 @@
 
   <main class="layout">
     <div class="input-column">
+      <section class="panel" id="meta-panel" hidden>
+        <div class="panel-head">
+          <h2>Информация о съёмке</h2>
+        </div>
+        <dl id="meta-list" class="meta-list"></dl>
+      </section>
+
       <section class="panel">
         <div class="panel-head">
           <h2>Опорные точки</h2>
-          <span class="hint">CSV: id,x,y</span>
         </div>
         <p class="hint">Пункты с точно известными координатами. Координаты всех остальных точек, упомянутых в измерениях, вычисляются автоматически — вводить их не нужно.</p>
         <div class="table-scroll">
@@ -32,9 +38,6 @@
         </div>
         <div class="row-actions">
           <button type="button" class="secondary" id="add-point">+ опорная точка</button>
-          <label class="secondary file-btn">Импорт CSV
-            <input type="file" id="import-points-csv" accept=".csv" hidden />
-          </label>
         </div>
       </section>
 
@@ -68,14 +71,14 @@
         </div>
         <div class="row-actions">
           <button type="button" class="secondary" id="add-observation">+ измерение</button>
-          <label class="secondary file-btn">Импорт CSV
-            <input type="file" id="import-observations-csv" accept=".csv" hidden />
-          </label>
         </div>
       </section>
 
       <section class="panel actions-panel">
         <button type="button" class="secondary" id="load-example">Загрузить пример</button>
+        <label class="secondary file-btn">Загрузить сеть (.yml)
+          <input type="file" id="import-network-yaml" accept=".yml,.yaml" hidden />
+        </label>
         <button type="button" id="adjust" class="primary">Уравнять сеть</button>
       </section>
     </div>

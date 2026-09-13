@@ -345,6 +345,16 @@ button.remove-row:hover { color: var(--danger-text); background: var(--danger-bg
   color: var(--muted);
   margin-bottom: 8px;
 }
+
+.meta-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 0.83rem;
+}
+.meta-list dt { color: var(--muted); font-weight: 500; }
+.meta-list dd { margin: 0; word-break: break-word; }
 .legend span { display: inline-flex; align-items: center; gap: 5px; }
 
 .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
