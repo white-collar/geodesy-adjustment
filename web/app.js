@@ -71,7 +71,13 @@ function collectReferencePoints() {
 
 // ---------- observations table ----------
 
+function getDefaultSigma(isAngular) {
+  const el = document.getElementById(isAngular ? "default-sigma-angular" : "default-sigma-linear");
+  return el.value;
+}
+
 function addObservationRow(type = "distance", from = "", to = "", to2 = "", value = "", sigma = "") {
+  if (sigma === "") sigma = getDefaultSigma(ANGULAR_TYPES.has(type));
   const tr = document.createElement("tr");
   tr.innerHTML = `
     <td>
@@ -91,7 +97,15 @@ function addObservationRow(type = "distance", from = "", to = "", to2 = "", valu
   `;
   tr.querySelector(".o-type").value = type;
   updateUnitSuffix(tr);
-  tr.querySelector(".o-type").addEventListener("change", () => updateUnitSuffix(tr));
+  tr.querySelector(".o-type").addEventListener("change", (e) => {
+    // Switch the sigma to the new type's default too, but only if it still
+    // matches *some* default value — i.e. the user hasn't customized it.
+    const sigmaInput = tr.querySelector(".o-sigma");
+    if (sigmaInput.value === getDefaultSigma(false) || sigmaInput.value === getDefaultSigma(true)) {
+      sigmaInput.value = getDefaultSigma(ANGULAR_TYPES.has(e.target.value));
+    }
+    updateUnitSuffix(tr);
+  });
   tr.querySelector(".remove-row").addEventListener("click", () => {
     if (selectedObsRow === tr) selectedObsRow = null;
     tr.remove();
@@ -567,5 +581,11 @@ document.getElementById("add-observation").addEventListener("click", () => {
 });
 document.getElementById("load-example").addEventListener("click", loadExample);
 document.getElementById("adjust").addEventListener("click", runAdjust);
+document.getElementById("apply-sigma-defaults").addEventListener("click", () => {
+  for (const tr of obsBody.querySelectorAll("tr")) {
+    const isAngular = ANGULAR_TYPES.has(tr.querySelector(".o-type").value);
+    tr.querySelector(".o-sigma").value = getDefaultSigma(isAngular);
+  }
+});
 
 loadExample();

@@ -43,6 +43,12 @@
           <h2>Измерения</h2>
           <span class="hint">distance — метры; azimuth/angle/direction — значение в градусах, σ в угловых секундах</span>
         </div>
+        <div class="sigma-defaults">
+          <span class="hint">σ по умолчанию (для новых строк):</span>
+          <label>линейные <input type="number" step="any" id="default-sigma-linear" value="0.005"> м</label>
+          <label>угловые <input type="number" step="any" id="default-sigma-angular" value="0.6"> ″</label>
+          <button type="button" class="secondary" id="apply-sigma-defaults">Применить ко всем строкам</button>
+        </div>
         <div class="table-scroll">
           <table id="observations-table">
             <colgroup>
