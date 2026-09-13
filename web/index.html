@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Уравнивание геодезической сети</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-text">
+      <h1>Уравнивание геодезической сети</h1>
+      <p class="subtitle">Параметрический МНК: опорные точки и измерения слева, результат — справа</p>
+    </div>
+  </header>
+
+  <main class="layout">
+    <div class="input-column">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Опорные точки</h2>
+          <span class="hint">CSV: id,x,y</span>
+        </div>
+        <p class="hint">Пункты с точно известными координатами. Координаты всех остальных точек, упомянутых в измерениях, вычисляются автоматически — вводить их не нужно.</p>
+        <div class="table-scroll">
+          <table id="points-table">
+            <thead>
+              <tr><th>ID</th><th>X (север)</th><th>Y (восток)</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="row-actions">
+          <button type="button" class="secondary" id="add-point">+ опорная точка</button>
+          <label class="secondary file-btn">Импорт CSV
+            <input type="file" id="import-points-csv" accept=".csv" hidden />
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Измерения</h2>
+          <span class="hint">distance — метры; azimuth/angle/direction — значение в градусах, σ в угловых секундах</span>
+        </div>
+        <div class="table-scroll">
+          <table id="observations-table">
+            <colgroup>
+              <col style="width: 15%">
+              <col style="width: 9%">
+              <col style="width: 9%">
+              <col style="width: 9%">
+              <col style="width: 26%">
+              <col style="width: 22%">
+              <col style="width: 10%">
+            </colgroup>
+            <thead>
+              <tr><th>Тип</th><th>From</th><th>To</th><th>To2</th><th>Значение</th><th>σ</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="row-actions">
+          <button type="button" class="secondary" id="add-observation">+ измерение</button>
+          <label class="secondary file-btn">Импорт CSV
+            <input type="file" id="import-observations-csv" accept=".csv" hidden />
+          </label>
+        </div>
+      </section>
+
+      <section class="panel actions-panel">
+        <button type="button" class="secondary" id="load-example">Загрузить пример</button>
+        <button type="button" id="adjust" class="primary">Уравнять сеть</button>
+      </section>
+    </div>
+
+    <div class="output-column">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Схема связей измерений</h2>
+        </div>
+        <p class="hint">Обновляется по мере ввода. Схематично (не в масштабе) — показывает, какие пункты связаны какими измерениями; помогает сразу заметить изолированный пункт. Клик по строке измерения слева подсвечивает её на схеме; клик по схеме снимает подсветку.</p>
+        <div class="legend">
+          <span><i class="dot dot-fixed"></i>опорная</span>
+          <span><i class="dot dot-free"></i>определяемая</span>
+          <span><i class="line line-distance"></i>distance</span>
+          <span><i class="line line-azimuth"></i>azimuth</span>
+          <span><i class="line line-angle"></i>angle</span>
+          <span><i class="line line-direction"></i>direction</span>
+        </div>
+        <svg id="connectivity-svg" class="schematic-svg" viewBox="0 0 360 360" width="360" height="360"></svg>
+      </section>
+
+      <section class="panel" id="error-box" hidden>
+        <p class="error-text"></p>
+      </section>
+
+      <section class="panel empty-state" id="empty-state">
+        <p>Заполните опорные точки и измерения слева и нажмите <strong>«Уравнять сеть»</strong> — здесь появится отчёт.</p>
+      </section>
+
+      <section class="panel" id="result" hidden>
+        <div class="panel-head">
+          <h2>Результат</h2>
+          <span id="status-badge" class="badge"></span>
+        </div>
+        <p id="status-line" class="hint"></p>
+        <p id="free-network-warning" class="warning" hidden></p>
+
+        <h3>Уравненные координаты</h3>
+        <div class="table-scroll">
+          <table id="result-points-table">
+            <thead>
+              <tr><th>ID</th><th>X</th><th>Y</th><th>σX, мм</th><th>σY, мм</th><th>Эллипс (a/b, мм)</th><th>θ, °</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <h3 id="orientations-heading" hidden>Ориентировки станций</h3>
+        <div class="table-scroll">
+          <table id="orientations-table" hidden>
+            <thead><tr><th>Станция</th><th>Z, °</th><th>σZ, ″</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <h3>Невязки</h3>
+        <div class="table-scroll">
+          <table id="residuals-table">
+            <thead><tr><th>Тип</th><th>From</th><th>To</th><th>To2</th><th>Невязка</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <h3>Схема сети</h3>
+        <div class="legend">
+          <span><i class="dot dot-fixed"></i>опорная</span>
+          <span><i class="dot dot-free"></i>определяемая</span>
+          <span><i class="dot dot-before"></i>приближённая (авто)</span>
+          <span><i class="line line-obs"></i>измерение</span>
+          <span><i class="line line-ellipse"></i>эллипс ошибки &times;<span id="ellipse-scale-label"></span></span>
+        </div>
+        <svg id="network-svg" class="schematic-svg" viewBox="0 0 640 640" width="640" height="640"></svg>
+      </section>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
