@@ -80,6 +80,10 @@
           <input type="file" id="import-network-yaml" accept=".yml,.yaml" hidden />
         </label>
         <button type="button" id="adjust" class="primary">Уравнять сеть</button>
+        <label class="trace-toggle">
+          <input type="checkbox" id="include-trace">
+          Показать подробный журнал вычислений
+        </label>
       </section>
     </div>
 
@@ -151,6 +155,12 @@
           <span><i class="line line-ellipse"></i>эллипс ошибки &times;<span id="ellipse-scale-label"></span></span>
         </div>
         <svg id="network-svg" class="schematic-svg" viewBox="0 0 640 640" width="640" height="640"></svg>
+
+        <div id="trace-section" hidden>
+          <h3>Журнал вычислений</h3>
+          <p class="hint">Числа — как внутри солвера: радианы и метры (не градусы/угловые секунды, как в остальном интерфейсе) — это буквально то, что стоит в матрицах частных производных.</p>
+          <div id="trace-steps"></div>
+        </div>
       </section>
     </div>
   </main>

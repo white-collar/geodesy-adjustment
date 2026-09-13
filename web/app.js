@@ -518,7 +518,11 @@ function formatValidationError(detail) {
 
 async function runAdjust() {
   errorBox.hidden = true;
-  const payload = { reference_points: collectReferencePoints(), observations: collectObservations() };
+  const payload = {
+    reference_points: collectReferencePoints(),
+    observations: collectObservations(),
+    include_trace: document.getElementById("include-trace").checked,
+  };
 
   let res, data;
   try {
@@ -614,6 +618,109 @@ function renderResult(data) {
 
   document.getElementById("ellipse-scale-label").textContent = ELLIPSE_SCALE;
   renderNetworkSvg(data);
+  renderTrace(data.trace || []);
+}
+
+// ---------- computation trace (step-by-step log, raw internal units) ----------
+
+function fmtNum(n, digits = 6) {
+  return Number(n).toFixed(digits);
+}
+
+function obsLabel(o) {
+  return `${o.type} ${o.from}→${o.to}${o.to2 ? "," + o.to2 : ""}`;
+}
+
+function renderMatrixTable(matrix, rowLabels, colLabels) {
+  let html = "<table><thead><tr><th></th>" + colLabels.map((c) => `<th>${escapeHtml(c)}</th>`).join("") + "</tr></thead><tbody>";
+  matrix.forEach((row, i) => {
+    html += `<tr><th>${escapeHtml(rowLabels[i])}</th>` + row.map((v) => `<td>${fmtNum(v)}</td>`).join("") + "</tr>";
+  });
+  return html + "</tbody></table>";
+}
+
+function renderVectorTable(vec, rowLabels, colLabel) {
+  let html = `<table><thead><tr><th></th><th>${escapeHtml(colLabel)}</th></tr></thead><tbody>`;
+  vec.forEach((v, i) => {
+    html += `<tr><th>${escapeHtml(rowLabels[i])}</th><td>${fmtNum(v)}</td></tr>`;
+  });
+  return html + "</tbody></table>";
+}
+
+function renderObservationsTable(rows, extraCols) {
+  let html = "<table><thead><tr><th>Измерение</th>" + extraCols.map((c) => `<th>${escapeHtml(c.label)}</th>`).join("") + "</tr></thead><tbody>";
+  for (const r of rows) {
+    html += `<tr><td>${escapeHtml(obsLabel(r))}</td>` + extraCols.map((c) => `<td>${fmtNum(r[c.key])}</td>`).join("") + "</tr>";
+  }
+  return html + "</tbody></table>";
+}
+
+function renderCoordsTable(coords) {
+  let html = "<table><thead><tr><th>ID</th><th>X</th><th>Y</th></tr></thead><tbody>";
+  for (const [id, [x, y]] of Object.entries(coords)) {
+    html += `<tr><td>${escapeHtml(id)}</td><td>${fmtNum(x, 4)}</td><td>${fmtNum(y, 4)}</td></tr>`;
+  }
+  return html + "</tbody></table>";
+}
+
+function renderStepBody(step) {
+  if (step.step === "start") {
+    let html = "<h4>Приближённые координаты (м)</h4>" + renderCoordsTable(step.coords);
+    const stations = Object.keys(step.orientations);
+    if (stations.length > 0) {
+      html += "<h4>Начальные ориентировки станций Z (рад)</h4>" + renderVectorTable(Object.values(step.orientations), stations, "Z");
+    }
+    return html;
+  }
+
+  if (step.step === "final") {
+    let html = "<h4>Невязки v = Aδ − l</h4>" + renderObservationsTable(step.residuals, [{ key: "v", label: "v" }]);
+    html +=
+      "<h4>Итог</h4><table><tbody>" +
+      `<tr><th>σ₀</th><td>${step.sigma0 === null ? "—" : fmtNum(step.sigma0)}</td></tr>` +
+      `<tr><th>степени свободы</th><td>${step.dof}</td></tr>` +
+      `<tr><th>ранг</th><td>${step.rank}</td></tr>` +
+      "</tbody></table>";
+    return html;
+  }
+
+  // iteration step
+  let html = "<h4>Координаты до итерации (м)</h4>" + renderCoordsTable(step.coords_before);
+  html +=
+    "<h4>Измерения: наблюдено / вычислено по текущим координатам / l = набл. − выч.</h4>" +
+    renderObservationsTable(step.observations, [
+      { key: "observed", label: "набл." },
+      { key: "calc", label: "выч." },
+      { key: "l", label: "l" },
+      { key: "sigma", label: "σ" },
+    ]);
+  html += "<h4>Матрица A (частные производные)</h4>" + renderMatrixTable(step.A, step.observations.map(obsLabel), step.unknown_labels);
+  html += "<h4>Нормальная матрица N = AᵀPA</h4>" + renderMatrixTable(step.N, step.unknown_labels, step.unknown_labels);
+  html += "<h4>Вектор b = AᵀPl</h4>" + renderVectorTable(step.b, step.unknown_labels, "b");
+  html += "<h4>Решение δ (поправки к неизвестным)</h4>" + renderVectorTable(step.delta, step.unknown_labels, "δ");
+  html += `<h4>max|δ| = ${fmtNum(step.max_delta)} — ${step.converged ? "сошлось" : "продолжаем итерации"}</h4>`;
+  html += "<h4>Координаты после итерации (м)</h4>" + renderCoordsTable(step.coords_after);
+  return html;
+}
+
+function renderTrace(trace) {
+  const section = document.getElementById("trace-section");
+  const container = document.getElementById("trace-steps");
+  if (!trace || trace.length === 0) {
+    section.hidden = true;
+    container.innerHTML = "";
+    return;
+  }
+  section.hidden = false;
+  container.innerHTML = trace
+    .map(
+      (step, i) => `
+    <details class="trace-step" ${i === 0 ? "open" : ""}>
+      <summary>${escapeHtml(step.title)}</summary>
+      <div class="trace-step-body">${renderStepBody(step)}</div>
+    </details>`
+    )
+    .join("");
 }
 
 // ---------- SVG network diagram ----------

@@ -23,7 +23,7 @@ def adjust_network(request: AdjustRequest) -> AdjustResponse:
         validate_references(request)
         observations = build_observations(request)
         points, seed_coords = build_points(request, observations)
-        result = adjust(points, observations)
+        result = adjust(points, observations, trace=request.include_trace)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

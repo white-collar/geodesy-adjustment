@@ -173,4 +173,5 @@ def build_response(
         seed_points=seed_points_out,
         orientations=orientations_out,
         residuals=residuals_out,
+        trace=result.trace,
     )

@@ -253,7 +253,19 @@ td input[type="checkbox"] { width: auto; accent-color: var(--accent); cursor: po
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
 }
+
+.trace-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  cursor: pointer;
+  margin-left: auto;
+}
+.trace-toggle input { accent-color: var(--accent); cursor: pointer; }
 
 button {
   border: 1px solid var(--border);
@@ -355,6 +367,39 @@ button.remove-row:hover { color: var(--danger-text); background: var(--danger-bg
 }
 .meta-list dt { color: var(--muted); font-weight: 500; }
 .meta-list dd { margin: 0; word-break: break-word; }
+
+.trace-step {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: var(--panel-2);
+}
+.trace-step summary {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.trace-step summary::marker { color: var(--muted); }
+.trace-step-body { padding: 4px 12px 12px; }
+.trace-step-body h4 {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  margin: 10px 0 4px;
+}
+.trace-step-body table {
+  font-size: 0.76rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.trace-step-body th, .trace-step-body td {
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+.trace-step-body th:first-child, .trace-step-body td:first-child { text-align: left; }
 .legend span { display: inline-flex; align-items: center; gap: 5px; }
 
 .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }

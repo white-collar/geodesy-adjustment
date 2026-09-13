@@ -5,7 +5,7 @@ radians/meters throughout): distances in meters, angular values in decimal
 degrees, angular sigmas in arcseconds. See api/convert.py for the conversion.
 """
 
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -45,6 +45,7 @@ class ObservationIn(BaseModel):
 class AdjustRequest(BaseModel):
     reference_points: List[ReferencePointIn]
     observations: List[ObservationIn]
+    include_trace: bool = False
 
 
 class ErrorEllipseOut(BaseModel):
@@ -96,3 +97,4 @@ class AdjustResponse(BaseModel):
     seed_points: List[SeedPointOut]
     orientations: List[OrientationOut]
     residuals: List[ResidualOut]
+    trace: List[Dict[str, Any]] = []

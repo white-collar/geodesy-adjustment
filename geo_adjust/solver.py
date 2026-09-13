@@ -7,7 +7,7 @@ rotation and/or scale), giving the minimum-norm solution.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 from scipy.linalg import pinvh
@@ -29,6 +29,7 @@ class AdjustmentResult:
     orientation_unknown_order: List[str]
     rank: int
     N: np.ndarray = field(repr=False)
+    trace: List[Dict[str, Any]] = field(default_factory=list, repr=False)
 
 
 def _index_point_unknowns(points: List[Point]) -> Dict[str, int]:
@@ -92,6 +93,7 @@ def _build_system(
     A = np.zeros((n_obs, n_unknowns))
     l = np.zeros(n_obs)
     weights = np.zeros(n_obs)
+    calc_values = np.zeros(n_obs)
 
     def add_point(row: int, point_id: str, dvx: float, dvy: float) -> None:
         if point_id in point_index:
@@ -139,7 +141,9 @@ def _build_system(
         else:
             raise ValueError(f"unknown observation type: {obs.type}")
 
-    return A, l, weights
+        calc_values[row] = calc
+
+    return A, l, weights, calc_values
 
 
 def adjust(
@@ -148,6 +152,7 @@ def adjust(
     max_iter: int = 10,
     tol: float = 1e-8,
     rcond: float = 1e-10,
+    trace: bool = False,
 ) -> AdjustmentResult:
     coords = {p.id: (p.x, p.y) for p in points}
     point_index = _index_point_unknowns(points)
@@ -163,6 +168,23 @@ def adjust(
 
     orientations = _initial_orientations(coords, observations, orientation_index)
 
+    unknown_labels: List[str] = []
+    for pid in point_order:
+        unknown_labels.extend([f"X:{pid}", f"Y:{pid}"])
+    unknown_labels.extend(f"Z:{station}" for station in orientation_order)
+
+    trace_steps: List[Dict[str, Any]] = []
+    if trace:
+        trace_steps.append(
+            {
+                "step": "start",
+                "title": "Исходные данные: приближённые координаты",
+                "coords": {pid: list(xy) for pid, xy in coords.items()},
+                "orientations": dict(orientations),
+                "unknown_labels": unknown_labels,
+            }
+        )
+
     A = l = weights = N = None
     delta = np.zeros(n_unknowns)
     rank = 0
@@ -170,9 +192,12 @@ def adjust(
     iterations = 0
 
     for iterations in range(1, max_iter + 1):
-        A, l, weights = _build_system(
+        A, l, weights, calc_values = _build_system(
             coords, orientations, observations, point_index, orientation_index, n_unknowns
         )
+        coords_before = {pid: list(xy) for pid, xy in coords.items()} if trace else None
+        orientations_before = dict(orientations) if trace else None
+
         Aw = A * weights[:, None]
         N = Aw.T @ A
         b = Aw.T @ l
@@ -185,8 +210,43 @@ def adjust(
         for station, j in orientation_index.items():
             orientations[station] = geo.wrap_angle(orientations[station] + delta[j])
 
-        if np.max(np.abs(delta)) < tol:
-            converged = True
+        max_delta = float(np.max(np.abs(delta)))
+        converged = max_delta < tol
+
+        if trace:
+            trace_steps.append(
+                {
+                    "step": f"iteration_{iterations}",
+                    "title": f"Итерация {iterations}",
+                    "coords_before": coords_before,
+                    "orientations_before": orientations_before,
+                    "observations": [
+                        {
+                            "type": obs.type,
+                            "from": obs.from_id,
+                            "to": obs.to_id,
+                            "to2": obs.to_id2,
+                            "observed": float(obs.value),
+                            "calc": float(calc_values[idx]),
+                            "l": float(l[idx]),
+                            "sigma": float(obs.sigma),
+                        }
+                        for idx, obs in enumerate(observations)
+                    ],
+                    "unknown_labels": unknown_labels,
+                    "A": A.tolist(),
+                    "weights": weights.tolist(),
+                    "N": N.tolist(),
+                    "b": b.tolist(),
+                    "delta": delta.tolist(),
+                    "coords_after": {pid: list(xy) for pid, xy in coords.items()},
+                    "orientations_after": dict(orientations),
+                    "max_delta": max_delta,
+                    "converged": converged,
+                }
+            )
+
+        if converged:
             break
 
     residuals = A @ delta - l
@@ -199,6 +259,27 @@ def adjust(
 
     Qx, rank = _pseudo_solve(N, np.eye(n_unknowns), rcond)
 
+    if trace:
+        trace_steps.append(
+            {
+                "step": "final",
+                "title": "Итог: невязки и точность",
+                "residuals": [
+                    {
+                        "type": obs.type,
+                        "from": obs.from_id,
+                        "to": obs.to_id,
+                        "to2": obs.to_id2,
+                        "v": float(residuals[idx]),
+                    }
+                    for idx, obs in enumerate(observations)
+                ],
+                "sigma0": sigma0 if sigma0 == sigma0 else None,
+                "dof": dof,
+                "rank": rank,
+            }
+        )
+
     return AdjustmentResult(
         coords=coords,
         orientations=orientations,
@@ -209,6 +290,7 @@ def adjust(
         Qx=Qx,
         point_unknown_order=point_order,
         orientation_unknown_order=orientation_order,
+        trace=trace_steps,
         rank=rank,
         N=N,
     )
