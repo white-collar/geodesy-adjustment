@@ -16,6 +16,18 @@
 
   <main class="layout">
     <div class="input-column">
+      <section class="panel actions-panel">
+        <button type="button" class="secondary" id="load-example">Загрузить пример</button>
+        <label class="secondary file-btn">Загрузить сеть (.yml)
+          <input type="file" id="import-network-yaml" accept=".yml,.yaml" hidden />
+        </label>
+        <button type="button" id="adjust" class="primary">Уравнять сеть</button>
+        <label class="trace-toggle">
+          <input type="checkbox" id="include-trace">
+          Показать подробный журнал вычислений
+        </label>
+      </section>
+
       <section class="panel" id="meta-panel" hidden>
         <div class="panel-head">
           <h2>Информация о съёмке</h2>
@@ -69,18 +81,6 @@
             <tbody></tbody>
           </table>
         </div>
-      </section>
-
-      <section class="panel actions-panel">
-        <button type="button" class="secondary" id="load-example">Загрузить пример</button>
-        <label class="secondary file-btn">Загрузить сеть (.yml)
-          <input type="file" id="import-network-yaml" accept=".yml,.yaml" hidden />
-        </label>
-        <button type="button" id="adjust" class="primary">Уравнять сеть</button>
-        <label class="trace-toggle">
-          <input type="checkbox" id="include-trace">
-          Показать подробный журнал вычислений
-        </label>
       </section>
     </div>
 
