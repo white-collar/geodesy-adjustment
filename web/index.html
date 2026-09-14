@@ -26,6 +26,7 @@
       <section class="panel">
         <div class="panel-head">
           <h2>Опорные точки</h2>
+          <button type="button" class="secondary" id="add-point">+ пункт</button>
         </div>
         <p class="hint">Пункты с точно известными координатами. Координаты всех остальных точек, упомянутых в измерениях, вычисляются автоматически — вводить их не нужно.</p>
         <div class="table-scroll">
@@ -36,9 +37,6 @@
             <tbody></tbody>
           </table>
         </div>
-        <div class="row-actions">
-          <button type="button" class="secondary" id="add-point">+ опорная точка</button>
-        </div>
       </section>
 
       <section class="panel">
@@ -46,8 +44,10 @@
           <h2>Измерения</h2>
           <span class="hint">distance — метры; azimuth/angle/direction — значение в градусах, σ в угловых секундах</span>
         </div>
-        <div class="sigma-defaults">
-          <span class="hint">σ по умолчанию (для новых строк):</span>
+        <div class="table-toolbar">
+          <button type="button" class="secondary" id="add-observation">+ измерение</button>
+          <span class="toolbar-divider"></span>
+          <span class="hint">σ по умолчанию:</span>
           <label>линейные <input type="number" step="any" id="default-sigma-linear" value="0.005"> м</label>
           <label>угловые <input type="number" step="any" id="default-sigma-angular" value="0.6"> ″</label>
           <button type="button" class="secondary" id="apply-sigma-defaults">Применить ко всем строкам</button>
@@ -68,9 +68,6 @@
             </thead>
             <tbody></tbody>
           </table>
-        </div>
-        <div class="row-actions">
-          <button type="button" class="secondary" id="add-observation">+ измерение</button>
         </div>
       </section>
 

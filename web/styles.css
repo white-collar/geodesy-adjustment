@@ -213,15 +213,7 @@ td input[type="checkbox"] { width: auto; accent-color: var(--accent); cursor: po
   pointer-events: none;
 }
 
-.row-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
-
-.sigma-defaults {
+.table-toolbar {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -232,14 +224,14 @@ td input[type="checkbox"] { width: auto; accent-color: var(--accent); cursor: po
   border: 1px solid var(--border);
   border-radius: 6px;
 }
-.sigma-defaults label {
+.table-toolbar label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 0.78rem;
   color: var(--muted);
 }
-.sigma-defaults input {
+.table-toolbar input {
   width: 70px;
   border: 1px solid var(--border);
   border-radius: 5px;
@@ -247,6 +239,11 @@ td input[type="checkbox"] { width: auto; accent-color: var(--accent); cursor: po
   font-size: 0.8rem;
   color: var(--text);
   background: var(--panel);
+}
+.toolbar-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
 }
 
 .actions-panel {
