@@ -3,6 +3,18 @@
 const ANGULAR_TYPES = new Set(["azimuth", "angle", "direction"]);
 const ELLIPSE_SCALE = 200; // error ellipses are mm-scale; magnify for visibility
 
+// Usage events for GoatCounter (loaded async at the end of index.html). Names
+// only — never pass user data (point ids, coordinates, file contents) here.
+function track(name) {
+  try {
+    if (window.goatcounter && window.goatcounter.count) {
+      window.goatcounter.count({ path: "geo-adjust/" + name, title: name, event: true });
+    }
+  } catch (e) {
+    /* analytics must never break the app */
+  }
+}
+
 const pointsBody = document.querySelector("#points-table tbody");
 const obsBody = document.querySelector("#observations-table tbody");
 
@@ -303,6 +315,7 @@ document.getElementById("import-network-yaml").addEventListener("change", (e) =>
       return;
     }
     loadParsedNetwork(parsed);
+    track("load-yaml");
   });
   e.target.value = "";
 });
@@ -518,6 +531,7 @@ function formatValidationError(detail) {
 
 async function runAdjust() {
   errorBox.hidden = true;
+  track("adjust");
   const payload = {
     reference_points: collectReferencePoints(),
     observations: collectObservations(),
@@ -538,6 +552,7 @@ async function runAdjust() {
   }
 
   if (!res.ok) {
+    track("adjust-error");
     showError(formatValidationError(data.detail));
     return;
   }
@@ -815,7 +830,13 @@ document.getElementById("add-observation").addEventListener("click", () => {
   addObservationRow();
   renderConnectivityGraph();
 });
-document.getElementById("load-example").addEventListener("click", loadExample);
+document.getElementById("load-example").addEventListener("click", () => {
+  loadExample();
+  track("load-example");
+});
+document.getElementById("include-trace").addEventListener("change", (e) => {
+  if (e.target.checked) track("trace-on");
+});
 document.getElementById("adjust").addEventListener("click", runAdjust);
 document.getElementById("apply-sigma-defaults").addEventListener("click", () => {
   for (const tr of obsBody.querySelectorAll("tr")) {

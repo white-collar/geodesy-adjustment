@@ -1,5 +1,7 @@
 """End-to-end tests for the /adjust HTTP endpoint."""
 
+import json
+import logging
 import math
 
 import pytest
@@ -124,3 +126,59 @@ def test_free_network_reports_rank_deficiency():
     data = response.json()
     assert data["converged"] is True
     assert data["rank_deficiency"] > 0
+
+
+def _usage_records(caplog):
+    return [
+        json.loads(r.getMessage().split("usage ", 1)[1])
+        for r in caplog.records
+        if r.getMessage().startswith("usage ")
+    ]
+
+
+def test_usage_log_on_success_has_counts_and_no_user_data(caplog):
+    caplog.set_level(logging.INFO, logger="uvicorn.error")
+    payload = {
+        "reference_points": [{"id": "SECRET_ORIGIN", "x": 123456.789, "y": 987654.321}],
+        "observations": [
+            {"type": "azimuth", "from": "SECRET_ORIGIN", "to": "SECRET_TARGET", "value": 20.0, "sigma": 0.6},
+            {"type": "distance", "from": "SECRET_ORIGIN", "to": "SECRET_TARGET", "value": 100.0, "sigma": 0.005},
+        ],
+    }
+
+    response = client.post("/adjust", json=payload)
+
+    assert response.status_code == 200
+    (record,) = _usage_records(caplog)
+    assert record["ok"] is True
+    assert record["observations"] == 2
+    assert record["reference_points"] == 1
+    assert record["points"] == 2
+    assert record["types"] == {"azimuth": 1, "distance": 1}
+    assert record["trace"] is False
+    assert record["converged"] is True
+    assert "ms" in record
+    logged = " ".join(r.getMessage() for r in caplog.records)
+    for secret in ("SECRET_ORIGIN", "SECRET_TARGET", "123456", "987654"):
+        assert secret not in logged
+
+
+def test_usage_log_on_error_has_category_and_no_user_data(caplog):
+    caplog.set_level(logging.INFO, logger="uvicorn.error")
+    payload = {
+        "reference_points": [{"id": "SECRET_ORIGIN", "x": 0.0, "y": 0.0}],
+        "observations": [
+            {"type": "distance", "from": "SECRET_X", "to": "SECRET_Y", "value": 10.0, "sigma": 0.01}
+        ],
+    }
+
+    response = client.post("/adjust", json=payload)
+
+    assert response.status_code == 400
+    (record,) = _usage_records(caplog)
+    assert record["ok"] is False
+    assert record["error"] == "unresolved_points"
+    assert record["observations"] == 1
+    logged = " ".join(r.getMessage() for r in caplog.records)
+    for secret in ("SECRET_ORIGIN", "SECRET_X", "SECRET_Y"):
+        assert secret not in logged
