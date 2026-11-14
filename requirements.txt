@@ -1,6 +1,4 @@
 numpy
 scipy
-pytest
 fastapi
-uvicorn[standard]
-httpx
+uvicorn
